@@ -67,3 +67,22 @@
 .employee-shell .product-icon-action:hover{background:#dcefe4}
 .employee-shell .product-icon-action.danger{color:#ad3d3d}
 .employee-shell .product-icon-action.danger:hover{background:#f8e8e6}
+.employee-shell .product-icon-action{gap:6px;padding:7px 9px;font-size:11px}
+.employee-shell .product-action-note{color:#65746a;font-size:10px}
+.archive-confirm-modal{width:min(460px,calc(100vw - 32px))}
+.archive-confirm-body{display:flex;flex-direction:column;gap:14px;padding:20px 22px 22px;color:var(--ink);font-size:13px;line-height:1.55}
+.archive-confirm-body p{margin:0}
+.archive-confirm-stock{color:var(--muted);font-size:12px}
+.archive-confirm-modal .danger-button{min-height:40px;padding:0 16px;border:1px solid #a92d2d;border-radius:8px;background:#ad3d3d;color:#fff;font-size:12px;font-weight:700}
+.archive-confirm-modal .danger-button:hover{background:#922c2c}
+.archive-confirm-modal .danger-button:disabled{opacity:.55;cursor:wait}
+.employee-shell .archive-confirm-modal{border-radius:16px;background:var(--paper)}
+.employee-shell .archive-confirm-modal .modal-heading h2{color:var(--ink)}
+.employee-shell .archive-confirm-modal .eyebrow{color:var(--green)}
+.employee-shell .archive-confirm-modal .archive-confirm-body{color:var(--ink)}
+.employee-shell .archive-confirm-modal .modal-heading{padding:20px 22px 14px;border-bottom:1px solid var(--line)}
+.employee-shell .archive-confirm-modal .archive-confirm-stock{padding:10px 12px;border-radius:8px;background:#f3f1ea;color:#536258}
+.employee-shell .archive-confirm-modal .modal-actions{justify-content:flex-end;gap:10px}
+.archive-confirm-modal .danger-button{border-color:#a83c3c;background:#a83c3c;color:#fff}
+.archive-confirm-modal .danger-button:hover{background:#8f2e2e}
+.archive-confirm-modal .danger-button:focus-visible{outline:3px solid rgba(168,60,60,.24);outline-offset:2px}

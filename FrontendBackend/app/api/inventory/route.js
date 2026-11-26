@@ -182,13 +182,17 @@ export async function POST(request) {
       const productId = String(body.productId || "");
       const batchId = String(body.batchId || "");
       if (!safeObjectId(productId) || !safeObjectId(batchId)) return Response.json({ error: "Product or batch not found." }, { status: 404 });
+      const product = await products.findOne({ _id: objectId(productId), active: { $ne: false } });
       const batch = await batches.findOne({ _id: objectId(batchId), productId, shopId, active: { $ne: false } });
-      if (!batch) return Response.json({ error: "Product or batch not found." }, { status: 404 });
+      if (!product || !batch) return Response.json({ error: "Product or batch not found." }, { status: 404 });
       if (Number(batch.availableQty || 0) > 0) return Response.json({ error: "This batch still has stock. Record its sale or transfer before deleting it." }, { status: 409 });
       const archived = await batches.updateOne({ _id: batch._id, availableQty: 0, active: { $ne: false } }, { $set: { active: false, archivedAt: now, updatedAt: now } });
       if (!archived.modifiedCount) return Response.json({ error: "Stock changed before the batch could be deleted. Refresh and try again." }, { status: 409 });
-      await audit.insertOne({ action: "PRODUCT_BATCH_ARCHIVED", actorId: identity.id, actorName: identity.name, actorRole: identity.role, shopId, createdAt: now, changes: { product: String(body.productName || "Product"), batchNumber: batch.batchNumber } });
-      return Response.json({ ok: true });
+      const productArchived = await batches.countDocuments({ productId, active: { $ne: false } }) === 0;
+      if (productArchived) await products.updateOne({ _id: product._id, active: { $ne: false } }, { $set: { active: false, archivedAt: now, updatedAt: now } });
+      await audit.insertOne({ action: "PRODUCT_BATCH_ARCHIVED", actorId: identity.id, actorName: identity.name, actorRole: identity.role, shopId, createdAt: now, changes: { product: product.name, batchNumber: batch.batchNumber } });
+      if (productArchived) await audit.insertOne({ action: "PRODUCT_ARCHIVED", actorId: identity.id, actorName: identity.name, actorRole: identity.role, shopId, createdAt: now, changes: { product: product.name, reason: "No active batches remain" } });
+      return Response.json({ ok: true, productArchived });
     }
 
     if (body.action === "purchase") {
