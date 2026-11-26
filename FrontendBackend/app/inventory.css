@@ -86,3 +86,18 @@
 .archive-confirm-modal .danger-button{border-color:#a83c3c;background:#a83c3c;color:#fff}
 .archive-confirm-modal .danger-button:hover{background:#8f2e2e}
 .archive-confirm-modal .danger-button:focus-visible{outline:3px solid rgba(168,60,60,.24);outline-offset:2px}
+
+.action-toast{position:fixed;left:24px;bottom:24px;z-index:1000;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:12px;width:min(390px,calc(100vw - 48px));padding:14px 14px;border:1px solid #dce6dc;border-left:4px solid #397b59;border-radius:14px;background:#fbfaf6;color:#17251e;box-shadow:0 16px 48px rgba(7,17,14,.2);animation:action-toast-enter .32s cubic-bezier(.2,.75,.25,1) both}
+.action-toast.warning{border-color:#eadcb8;border-left-color:#c08b25;background:#fffaf0}
+.action-toast.error{border-color:#efd2d0;border-left-color:#b23a3a;background:#fff9f8}
+.action-toast-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#e2efe6;color:#397b59}
+.action-toast.warning .action-toast-icon{background:#f6efdf;color:#a66c14}
+.action-toast.error .action-toast-icon{background:#f8e8e6;color:#ad3d3d}
+.action-toast-copy{min-width:0;padding-top:1px}
+.action-toast-copy strong{display:block;color:#17251e;font-size:12px;font-weight:800;line-height:1.35}
+.action-toast-copy p{margin:3px 0 0;color:#536258;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.action-toast-close{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:#536258}
+.action-toast-close:hover{background:rgba(23,37,30,.08);color:#17251e}
+@keyframes action-toast-enter{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:680px){.action-toast{left:12px;bottom:12px;width:calc(100vw - 24px)}}
+@media(prefers-reduced-motion:reduce){.action-toast{animation:none}}
