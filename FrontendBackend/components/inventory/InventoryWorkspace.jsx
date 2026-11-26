@@ -40,8 +40,20 @@ export default function InventoryWorkspace({ user, onSignOut }) {
   const [selectedProductBatch, setSelectedProductBatch] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [notice, setNotice] = useState("");
+  const [noticeType, setNoticeType] = useState("success");
+  const [noticeVersion, setNoticeVersion] = useState(0);
+  const [dataErrorDismissed, setDataErrorDismissed] = useState(false);
   const [dialogError, setDialogError] = useState("");
   const [busy, setBusy] = useState(false);
+  function showNotification(message, type = "success") {
+    if (!message) {
+      setNotice("");
+      return;
+    }
+    setNoticeType(type);
+    setNotice(message);
+    setNoticeVersion((version) => version + 1);
+  }
   const { data, error, isLoading, mutate } = useSWR(`/api/inventory${shopId ? `?shopId=${encodeURIComponent(shopId)}` : ""}`, fetcher, { revalidateOnFocus: true });
 
   useEffect(() => {
@@ -59,6 +71,23 @@ export default function InventoryWorkspace({ user, onSignOut }) {
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [accountOpen]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(""), 6500);
+    return () => window.clearTimeout(timer);
+  }, [notice, noticeVersion]);
+
+  useEffect(() => {
+    if (!error) {
+      setDataErrorDismissed(false);
+      return undefined;
+    }
+    setDataErrorDismissed(false);
+    const timer = window.setTimeout(() => setDataErrorDismissed(true), 6500);
+    return () => window.clearTimeout(timer);
+  }, [error]);
+
   const { data: employeeData, mutate: mutateEmployees } = useSWR(section === "employees" && user.role === "SUPER_ADMIN" ? "/api/employees" : null, fetcher, { revalidateOnFocus: true });
   const { data: transferData, mutate: mutateTransfers } = useSWR(section === "transfers" && user.role === "SUPER_ADMIN" ? "/api/transfers" : null, fetcher, { revalidateOnFocus: true });
   const { data: auditData } = useSWR(section === "transactions" && user.role === "SUPER_ADMIN" ? `/api/audit?page=${auditPage}${shopId ? `&shopId=${encodeURIComponent(shopId)}` : ""}` : null, fetcher, { revalidateOnFocus: true });
@@ -101,7 +130,7 @@ export default function InventoryWorkspace({ user, onSignOut }) {
     if (payload.unitPrice) payload.unitPrice = Number(payload.unitPrice);
     if (payload.unitValue !== undefined && payload.unitValue !== "") payload.unitValue = Number(payload.unitValue);
     setBusy(true);
-    setNotice("");
+    showNotification("");
     setDialogError("");
     try {
       const isEmployee = dialog === "create-employee" || dialog === "edit-employee";
@@ -115,7 +144,7 @@ export default function InventoryWorkspace({ user, onSignOut }) {
       setSelectedEmployee(null);
       setSelectedShop(null);
       setSelectedProductBatch(null);
-      setNotice(shopEdit ? "Shop details updated." : employeeEdit ? "Employee details updated." : dialog === "edit-product-batch" ? "Product and batch details updated." : dialog === "create-product" ? "Product and opening batch added." : isEmployee ? (result.inviteSent ? "Employee created. The setup invitation was emailed." : `Employee created. Email delivery is unavailable; share this one-time setup link securely: ${result.inviteUrl}`) : isTransfer ? `Transfer ${result.reference} created. Dispatch it when ready.` : "Changes saved.");
+      showNotification(shopEdit ? "Shop details updated." : employeeEdit ? "Employee details updated." : dialog === "edit-product-batch" ? "Product and batch details updated." : dialog === "create-product" ? "Product and opening batch added." : isEmployee ? (result.inviteSent ? "Employee created. The setup invitation was emailed." : `Employee created. Email delivery is unavailable; share this one-time setup link securely: ${result.inviteUrl}`) : isTransfer ? `Transfer ${result.reference} created. Dispatch it when ready.` : "Changes saved.");
       await mutate();
       if (isEmployee) await mutateEmployees();
       if (isTransfer) await mutateTransfers();
@@ -128,10 +157,10 @@ export default function InventoryWorkspace({ user, onSignOut }) {
 
   function archiveProductBatch(product, batch) {
     if (Number(batch.availableQty || 0) > 0) {
-      setNotice("This batch still has stock. Record a sale or transfer before deleting it.");
+      showNotification("This batch still has stock. Record a sale or transfer before deleting it.", "warning");
       return;
     }
-    setNotice("");
+    showNotification("");
     setArchiveTarget({ product, batch });
   }
 
@@ -139,17 +168,17 @@ export default function InventoryWorkspace({ user, onSignOut }) {
     if (!archiveTarget || busy) return;
     const { product, batch } = archiveTarget;
     setBusy(true);
-    setNotice("");
+    showNotification("");
     try {
       const response = await fetch("/api/inventory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "archive-product-batch", productId: product._id, productName: product.name, batchId: batch._id, shopId: batch.shopId }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "The batch could not be deleted.");
       setArchiveTarget(null);
-      setNotice(result.productArchived ? "Product deleted from the active catalogue; audit history was retained." : "Batch deleted from active inventory; audit history was retained.");
+      showNotification(result.productArchived ? "Product deleted from the active catalogue; audit history was retained." : "Batch deleted from active inventory; audit history was retained.");
       await mutate();
     } catch (requestError) {
       setArchiveTarget(null);
-      setNotice(requestError.message);
+      showNotification(requestError.message, "error");
     } finally {
       setBusy(false);
     }
@@ -159,15 +188,15 @@ export default function InventoryWorkspace({ user, onSignOut }) {
     const label = action === "dispatch" ? "dispatch" : action === "receive" ? "confirm receipt" : "cancel";
     if (!window.confirm(`Are you sure you want to ${label} transfer ${transfer.reference}?`)) return;
     setBusy(true);
-    setNotice("");
+    showNotification("");
     try {
       const response = await fetch("/api/transfers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: transfer._id, action }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Transfer update failed.");
-      setNotice(`Transfer ${transfer.reference} updated.`);
+      showNotification(`Transfer ${transfer.reference} updated.`);
       await mutateTransfers();
       await mutate();
-    } catch (requestError) { setNotice(requestError.message); }
+    } catch (requestError) { showNotification(requestError.message, "error"); }
     finally { setBusy(false); }
   }
 
@@ -175,14 +204,14 @@ export default function InventoryWorkspace({ user, onSignOut }) {
     const active = shop.active === false;
     if (!active && !window.confirm(`Deactivate ${shop.name}? Employees will no longer be able to record stock for this location.`)) return;
     setBusy(true);
-    setNotice("");
+    showNotification("");
     try {
       const response = await fetch("/api/shops", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: shop._id, active }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Shop update failed.");
-      setNotice(active ? "Shop activated." : "Shop deactivated.");
+      showNotification(active ? "Shop activated." : "Shop deactivated.");
       await mutate();
-    } catch (requestError) { setNotice(requestError.message); }
+    } catch (requestError) { showNotification(requestError.message, "error"); }
     finally { setBusy(false); }
   }
 
@@ -205,14 +234,14 @@ export default function InventoryWorkspace({ user, onSignOut }) {
   async function employeeAction(employee, action) {
     if (action === "deactivate" && !window.confirm(`Deactivate ${employee.name}? Their active sessions will be revoked.`)) return;
     setBusy(true);
-    setNotice("");
+    showNotification("");
     try {
       const response = await fetch("/api/employees", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: employee._id, action }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Employee update failed.");
-      setNotice(action === "reset-password" ? (result.inviteSent ? "Password setup link emailed." : `Email delivery unavailable; share this one-time setup link securely: ${result.inviteUrl}`) : "Employee record updated.");
+      showNotification(action === "reset-password" ? (result.inviteSent ? "Password setup link emailed." : `Email delivery unavailable; share this one-time setup link securely: ${result.inviteUrl}`) : "Employee record updated.");
       await mutateEmployees();
-    } catch (requestError) { setNotice(requestError.message); }
+    } catch (requestError) { showNotification(requestError.message, "error"); }
     finally { setBusy(false); }
   }
 
@@ -235,8 +264,8 @@ export default function InventoryWorkspace({ user, onSignOut }) {
           {user.role === "EMPLOYEE" && section === "overview" && <section className="employee-welcome" aria-label="Employee dashboard welcome"><div className="employee-welcome-copy"><span className="employee-welcome-kicker">YOUR STORE WORKSPACE</span><h1>Welcome back, <strong>{user.name?.split(" ")[0] || "teammate"}!</strong></h1><p>Keep your supplement store running smoothly. Review stock, expiry dates, and today&apos;s activity.</p></div><div className="employee-welcome-art" aria-hidden="true"><span className="welcome-sun" /><span className="welcome-building"><i /><i /><i /></span><span className="welcome-box box-one" /><span className="welcome-box box-two" /></div></section>}
           <div className="page-heading"><div><p className="eyebrow">{activeShop?.name || (user.role === "SUPER_ADMIN" ? "BUSINESS OVERVIEW" : "YOUR STORE")}</p><h1>{section === "overview" ? (user.role === "SUPER_ADMIN" ? "Good business starts here." : "Shop Dashboard") : section === "shops" ? "Store locations" : section === "employees" ? "Team access" : section === "transfers" ? "Stock transfers" : section === "inventory" ? "Products" : section === "billing" ? "Billing & sales" : section === "expiry" ? "Expiry management" : "Recent activity"}</h1><p className="heading-subtitle">{section === "overview" ? (user.role === "SUPER_ADMIN" ? "A live view of stock and performance across your stores." : "A live view of the products, stock levels, and expiry dates at your shop.") : section === "shops" ? "Review store locations and their current operations." : section === "employees" ? "Invite teammates and manage their shop permissions." : section === "transfers" ? "Dispatch and receive stock between store locations." : section === "inventory" ? "Manage your supplement catalogue, batch quantities, and expiry dates." : section === "billing" ? "Review shop sales, revenue, and customer invoices." : section === "expiry" ? "Review expiring batches before they reach the shelf." : "A traceable record of recent inventory changes."}</p></div><div className="heading-actions"><span className="date-chip">{new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(new Date())}</span>{user.role === "EMPLOYEE" && section === "overview" && user.permissions?.includes("inventory") && <button className="primary-button" type="button" disabled={!shops.length} onClick={() => setDialog("create-product")}><Plus size={16} /> Add product</button>}{user.role === "SUPER_ADMIN" && section === "shops" && <button className="primary-button" type="button" onClick={() => setDialog("create-shop")}><Plus size={16} /> Add shop</button>}{user.role === "SUPER_ADMIN" && section === "employees" && <button className="primary-button" type="button" onClick={() => setDialog("create-employee")}><Plus size={16} /> Add employee</button>}{user.role === "SUPER_ADMIN" && section === "transfers" && <button className="primary-button" type="button" onClick={() => setDialog("transfer")}><Plus size={16} /> New transfer</button>}{section === "expiry" && <button className="outline-button" type="button" onClick={exportExpiryRows}>Export CSV</button>}{section === "inventory" && (user.role === "SUPER_ADMIN" || user.permissions?.includes("inventory")) && <button className="primary-button" type="button" onClick={() => setDialog("create-product")}><Plus size={16} /> Add product</button>}</div></div>
 
-          {notice && <div className="notice-banner" role="status">{notice}<button type="button" onClick={() => setNotice("")} aria-label="Dismiss"><X size={15} /></button></div>}
-          {error && <div className="notice-banner error" role="alert">{error.message}</div>}
+          {notice && <ActionToast key={noticeVersion} message={notice} type={noticeType} onClose={() => showNotification("")} />}
+          {error && !notice && !dataErrorDismissed && <ActionToast key={`inventory-error-${error.message}`} message={error.message} type="error" onClose={() => setDataErrorDismissed(true)} />}
           {section === "overview" && user.role !== "SUPER_ADMIN" && <>
             <section className="metric-grid" aria-label="Shop inventory summary">
               <Metric icon={Package} label="Products" value={metrics.productCount ?? "—"} caption={`${metrics.stockUnits ?? 0} units on hand`} />
@@ -291,6 +320,11 @@ export default function InventoryWorkspace({ user, onSignOut }) {
 }
 
 function Metric({ icon: Icon, label, value, caption }) { return <article className="metric-card"><span className="metric-icon"><Icon size={18} /></span><span className="metric-label">{label}</span><strong>{value}</strong><small>{caption}</small></article>; }
+function ActionToast({ message, type, onClose }) {
+  const Icon = type === "success" ? ClipboardList : AlertTriangle;
+  const heading = type === "success" ? "Action complete" : type === "warning" ? "Action needed" : "Action failed";
+  return <div className={`action-toast ${type}`} role={type === "error" ? "alert" : "status"} aria-live={type === "error" ? "assertive" : "polite"} aria-atomic="true"><span className="action-toast-icon"><Icon size={18} aria-hidden="true" /></span><div className="action-toast-copy"><strong>{heading}</strong><p>{message}</p></div><button className="action-toast-close" type="button" onClick={onClose} aria-label="Close notification"><X size={16} aria-hidden="true" /></button></div>;
+}
 function EmptyState({ title, detail }) { return <div className="empty-state"><Package size={19} /><strong>{title}</strong><span>{detail}</span></div>; }
 function ActivityRows({ activity, expanded = false }) { return activity.length ? <div className="activity-list">{activity.map((entry) => <div className="activity-row" key={entry._id}><span className="activity-marker"><ClipboardList size={15} /></span><span className="activity-copy"><strong>{String(entry.action || "UPDATE").replaceAll("_", " ")}</strong><small>{entry.actorName || "User"} · {entry.actorRole === "SUPER_ADMIN" ? "Admin update" : "Employee update"}{entry.changes?.product ? ` · ${entry.changes.product}` : ""}</small></span><time>{expanded ? new Date(entry.createdAt).toLocaleString() : dayLabel(entry.createdAt)}</time></div>)}</div> : <EmptyState title="No activity recorded" detail="Transactions and important updates will appear here." />; }
 
