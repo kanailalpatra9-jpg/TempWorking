@@ -37,3 +37,33 @@
 .employee-shell .date-chip{border-color:var(--line);background:var(--paper);color:var(--muted)}
 .employee-shell .primary-button{background:var(--green);box-shadow:0 4px 12px rgba(57,123,89,.16)}
 @media(max-width:680px){.employee-welcome{min-height:unset;padding:21px 19px}.employee-welcome-art{display:none}}
+
+.employee-shell .product-entry-modal{width:min(820px,calc(100vw - 40px));max-height:92vh;border-color:#dce6dc;border-radius:18px;background:var(--paper);box-shadow:0 30px 90px rgba(7,17,14,.22)}
+.employee-shell .product-entry-modal .modal-heading{padding:24px 28px 18px;border-bottom:1px solid var(--line)}
+.employee-shell .product-entry-modal .modal-heading h2{color:var(--ink);font-size:clamp(22px,2.2vw,29px);font-weight:700;letter-spacing:-.04em}
+.employee-shell .product-entry-modal .modal-heading .eyebrow{color:var(--green)}
+.employee-shell .modal-form.product-entry-form{gap:16px;padding:20px 28px 25px}
+.employee-shell .product-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.employee-shell .product-form-quantity{grid-column:1/-1;display:grid;grid-template-columns:.8fr .9fr .9fr 1.15fr 1.2fr;gap:10px;align-items:start}
+.employee-shell .product-entry-form label{min-width:0;color:#24382c;font-size:12px;font-weight:700;line-height:1.35}
+.employee-shell .product-entry-form label small{color:#64746a;font-size:10px;font-weight:500;line-height:1.35}
+.employee-shell .product-entry-form input,.employee-shell .product-entry-form select{height:44px;border:1px solid #d6e0d6;border-radius:9px;background:#fff;color:#17251e;font-size:14px}
+.employee-shell .product-entry-form input::placeholder{color:#849086;opacity:1}
+.employee-shell .product-entry-form input:focus-visible,.employee-shell .product-entry-form select:focus-visible{outline:3px solid rgba(57,123,89,.2);border-color:#397b59}
+.employee-shell .product-total-output{display:flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid #d6e0d6;border-radius:9px;background:#f1f6ef;color:#17251e;font-size:15px;font-weight:750;letter-spacing:.01em}
+.employee-shell .product-entry-form .modal-actions{justify-content:flex-end;gap:10px;padding-top:4px}
+.employee-shell .product-entry-form .modal-actions button{min-height:43px;padding:0 18px;font-size:13px}
+.employee-shell .product-entry-form .modal-actions .primary-button{min-width:145px}
+.employee-shell .product-entry-form .form-error{grid-column:1/-1;color:#a52c2c}
+.employee-shell .product-entry-form .product-total-field small{font-weight:600}
+@media(max-width:760px){.employee-shell .product-entry-modal{width:min(100%,calc(100vw - 28px))}.employee-shell .product-form-quantity{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.employee-shell .product-entry-modal{max-height:94vh;border-radius:14px}.employee-shell .product-entry-modal .modal-heading{padding:18px 18px 14px}.employee-shell .modal-form.product-entry-form{gap:14px;padding:17px}.employee-shell .product-form-grid{grid-template-columns:1fr;gap:12px}.employee-shell .product-form-quantity{grid-template-columns:repeat(2,minmax(0,1fr))}.employee-shell .product-entry-form .modal-actions{position:sticky;bottom:0;margin:0 -17px -17px;padding:12px 17px;border-top:1px solid var(--line);background:var(--paper)}}
+.employee-shell .products-toolbar-actions .record-count{color:#536258;font-size:11px;font-weight:700}
+.employee-shell .table-scroll th{color:#536258;font-size:11px;font-weight:700;letter-spacing:.06em}
+.employee-shell .table-scroll td{color:#17251e;font-size:12px;font-weight:500}
+.employee-shell .table-scroll td strong{color:#17251e;font-weight:700}
+.employee-shell .table-scroll td small{display:block;margin-top:3px;color:#617167;font-size:11px;line-height:1.35}
+.employee-shell .product-icon-action{padding:7px;border-radius:8px;color:#397b59}
+.employee-shell .product-icon-action:hover{background:#dcefe4}
+.employee-shell .product-icon-action.danger{color:#ad3d3d}
+.employee-shell .product-icon-action.danger:hover{background:#f8e8e6}

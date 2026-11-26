@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const numeric = (value, minimum = 1) => Number.isFinite(Number(value)) && Number(value) >= minimum;
+const productUnits = new Set(["pcs", "g", "kg", "ml", "l"]);
 const dayStart = () => { const date = new Date(); date.setUTCHours(0, 0, 0, 0); return date; };
 let indexPromise;
 
@@ -98,6 +99,39 @@ export async function POST(request) {
     const shop = await shops.findOne({ _id: objectId(shopId), active: { $ne: false } });
     if (!shop) return Response.json({ error: "Shop not found or inactive." }, { status: 404 });
 
+    if (body.action === "create-product-with-batch") {
+      if (identity.role !== "SUPER_ADMIN" && !identity.permissions?.includes("inventory")) return Response.json({ error: "Forbidden" }, { status: 403 });
+      const name = String(body.name || "").trim();
+      const batchNumber = String(body.batchNumber || "").trim();
+      const supplier = String(body.supplier || "").trim();
+      const flavor = String(body.flavor || "").trim();
+      const quantity = Number(body.quantity);
+      const unitValue = Number(body.unitValue ?? 0);
+      const unit = String(body.unit || "pcs");
+      const unitPrice = Number(body.unitPrice);
+      const expiryDate = body.expiryDate ? new Date(body.expiryDate) : null;
+      const manufacturingDate = body.manufacturingDate ? new Date(body.manufacturingDate) : null;
+      if (name.length < 2 || name.length > 140 || !batchNumber || batchNumber.length > 60 || supplier.length > 120 || flavor.length > 100 || !Number.isInteger(quantity) || quantity < 0 || quantity > 1000000 || !numeric(unitValue, 0) || unitValue > 1000000 || !productUnits.has(unit) || !numeric(unitPrice, 0.01) || unitPrice > 10000000 || !expiryDate || Number.isNaN(expiryDate.getTime()) || expiryDate <= now || (manufacturingDate && (Number.isNaN(manufacturingDate.getTime()) || manufacturingDate > now || manufacturingDate >= expiryDate))) return Response.json({ error: "Enter a product name, batch code, valid quantity, price, unit, and future expiry date." }, { status: 400 });
+      const productId = new ObjectId();
+      const purchaseId = quantity > 0 ? new ObjectId() : null;
+      const client = db.client;
+      const session = client.startSession();
+      try {
+        await session.withTransaction(async () => {
+          await products.insertOne({ _id: productId, name, category: "Supplements", flavor, unitValue, unit, unitPrice, lowStockThreshold: 10, active: true, createdAt: now, updatedAt: now }, { session });
+          await batches.insertOne({ shopId, productId: productId.toString(), batchNumber, supplier, expiryDate, manufacturingDate, purchaseDate: now, unitCost: unitPrice, unitPrice, availableQty: quantity, purchasedQty: quantity, active: true, createdAt: now, updatedAt: now }, { session });
+          await audit.insertOne({ action: "PRODUCT_CREATED", actorId: identity.id, actorName: identity.name, actorRole: identity.role, shopId, createdAt: now, changes: { name, batchNumber, flavor, quantity, unitValue, unit, unitPrice } }, { session });
+          if (purchaseId) {
+            await db.collection("purchases").insertOne({ _id: purchaseId, shopId, productId: productId.toString(), batchNumber, quantity, unitCost: unitPrice, unitPrice, supplier, invoiceNumber: "", purchaseDate: now, paymentStatus: "unpaid", createdAt: now, actorId: identity.id, actorName: identity.name }, { session });
+            await audit.insertOne({ action: "PURCHASE_RECORDED", actorId: identity.id, actorName: identity.name, actorRole: identity.role, shopId, reference: purchaseId.toString(), createdAt: now, changes: { product: name, batchNumber, quantity, unitCost: unitPrice, stockChange: "created" } }, { session });
+          }
+        });
+      } finally {
+        await session.endSession();
+      }
+      return Response.json({ ok: true, id: productId.toString() }, { status: 201 });
+    }
+
     if (body.action === "create-product") {
       if (identity.role !== "SUPER_ADMIN" && !identity.permissions?.includes("inventory")) return Response.json({ error: "Forbidden" }, { status: 403 });
       const name = String(body.name || "").trim();
@@ -130,8 +164,11 @@ export async function POST(request) {
       const unitPrice = Number(body.unitPrice);
       const expiryDate = body.expiryDate ? new Date(body.expiryDate) : null;
       const manufacturingDate = body.manufacturingDate ? new Date(body.manufacturingDate) : null;
-      if (name.length < 2 || name.length > 140 || !category || category.length > 80 || batchNumber.length < 1 || batchNumber.length > 60 || supplier.length > 120 || !numeric(unitPrice, 0.01) || unitPrice > 10000000 || !expiryDate || Number.isNaN(expiryDate.getTime()) || (manufacturingDate && Number.isNaN(manufacturingDate.getTime())) || expiryDate <= new Date(batch.purchaseDate || batch.createdAt || 0) || (manufacturingDate && manufacturingDate >= expiryDate)) return Response.json({ error: "Enter valid product details, batch number, price, and dates." }, { status: 400 });
-      const productChanges = { name, category, brand: String(body.brand || "").trim().slice(0, 80), unitPrice, updatedAt: now };
+      const flavor = String(body.flavor ?? product.flavor ?? "").trim();
+      const unitValue = body.unitValue === undefined ? Number(product.unitValue || 0) : Number(body.unitValue);
+      const unit = String(body.unit ?? product.unit ?? "pcs");
+      if (name.length < 2 || name.length > 140 || !category || category.length > 80 || batchNumber.length < 1 || batchNumber.length > 60 || supplier.length > 120 || flavor.length > 100 || !numeric(unitValue, 0) || unitValue > 1000000 || !productUnits.has(unit) || !numeric(unitPrice, 0.01) || unitPrice > 10000000 || !expiryDate || Number.isNaN(expiryDate.getTime()) || (manufacturingDate && Number.isNaN(manufacturingDate.getTime())) || expiryDate <= new Date(batch.purchaseDate || batch.createdAt || 0) || (manufacturingDate && manufacturingDate >= expiryDate)) return Response.json({ error: "Enter valid product details, batch number, price, unit, and dates." }, { status: 400 });
+      const productChanges = { name, category, brand: String(body.brand || "").trim().slice(0, 80), flavor, unitValue, unit, unitPrice, updatedAt: now };
       if (sku) productChanges.sku = sku;
       if (barcode) productChanges.barcode = barcode;
       await products.updateOne({ _id: product._id }, { $set: productChanges, $unset: { ...(sku ? {} : { sku: "" }), ...(barcode ? {} : { barcode: "" }) } });
